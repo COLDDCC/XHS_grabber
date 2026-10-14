@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "社媒采集助手",
+  "version": "1.0.1",
+  "description": "小红书搜索与笔记采集、正文补齐、Excel 导出和素材下载。搜索采集需要网页登录，素材解析依赖可用的第三方服务。",
+  "minimum_chrome_version": "113",
+  "permissions": [
+    "storage",
+    "tabs",
+    "downloads",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://*.xiaohongshu.com/*",
+    "https://*.xhscdn.com/*",
+    "https://*.xhslink.com/*",
+    "https://www.xhs-download.online/*",
+    "https://*.bhwa233.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.xiaohongshu.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://*.xiaohongshu.com/*"
+      ],
+      "js": [
+        "hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "社媒采集助手",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "default_title": ""
+}

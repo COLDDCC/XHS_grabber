@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>社媒采集助手</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-logo"><span class="mark"></span><div><div class="app-title">社媒采集助手</div><div class="app-sub">XIAOHONGSHU · COLLECTOR</div></div></div>
+    <div id="totalBadge" class="total-badge">共 0 条</div>
+  </header>
+  <div id="taskBanner" class="task-banner hidden"></div>
+
+  <!-- ============ 采集 ============ -->
+  <section id="capturePanel" class="panel">
+    <div class="panel-head">
+      <div class="panel-title">采集</div>
+      <div class="panel-sub">COLLECT</div>
+    </div>
+    <div class="capture-tabs">
+      <button class="capture-tab active" data-mode="keyword">关键词</button>
+      <button class="capture-tab" data-mode="author">博主</button>
+      <button class="capture-tab" data-mode="link">链接</button>
+      <button class="capture-tab" data-mode="suggest">下拉词</button>
+      <button class="capture-tab" data-mode="comment">评论</button>
+    </div>
+    <div id="statusLine" class="status-line">空闲。</div>
+    <div class="capture-card" data-capture="keyword">
+    <div class="card config-card">
+      <div class="card-title">关键词采集</div>
+      <div class="field">
+        <label for="keywordsInput">关键词（逗号/换行分隔）</label>
+        <textarea id="keywordsInput" rows="2" placeholder="例如：移民&#10;美国移民&#10;日本买房"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="sortSelect">排序</label>
+          <select id="sortSelect">
+            <option value="general">综合推荐</option>
+            <option value="time_descending">最新发布</option>
+            <option value="popularity_descending">最多点赞</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="timeSelect">时间范围</label>
+          <select id="timeSelect">
+            <option value="0">不限</option>
+            <option value="86400">一天内</option>
+            <option value="604800">一周内</option>
+            <option value="2592000">一个月内</option>
+            <option value="12960000">半年内</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="maxInput">每词上限</label>
+          <input id="maxInput" type="number" min="1" max="500" value="150" />
+        </div>
+        <div class="field">
+          <label for="delayInput">间隔（秒）</label>
+          <input id="delayInput" type="number" min="0" max="300" value="5" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="minLikesInput">最低点赞</label>
+          <input id="minLikesInput" type="number" min="0" value="0" />
+        </div>
+        <div class="field">
+          <label for="minCollectsInput">最低收藏</label>
+          <input id="minCollectsInput" type="number" min="0" value="0" />
+        </div>
+        <div class="field">
+          <label for="minCommentsInput">最低评论</label>
+          <input id="minCommentsInput" type="number" min="0" value="0" />
+        </div>
+        <div class="field">
+          <label for="captureTypeSelect">内容类型</label>
+          <select id="captureTypeSelect">
+            <option value="">全部</option>
+            <option value="image">图文</option>
+            <option value="video">视频</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:2px">
+        <label class="mini-check"><input type="checkbox" id="silentCb" checked /> 静默采集</label>
+      </div>
+      <div class="btn-row">
+        <button id="startBtn" class="btn primary">开始采集</button>
+        <button id="stopBtn" class="btn danger" disabled>停止</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="capture-card" data-capture="author">
+    <div class="card config-card">
+      <div class="card-title">博主采集</div>
+      <div class="field">
+        <label for="authorUrlInput">博主主页链接</label>
+        <input id="authorUrlInput" type="text" placeholder="https://www.xiaohongshu.com/user/profile/xxxx" />
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="authorMaxInput">采集上限</label>
+          <input id="authorMaxInput" type="number" min="1" max="500" value="100" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="authorBtn" class="btn primary">开始采集</button>
+        <button id="authorStopBtn" class="btn danger" disabled>停止</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="capture-card" data-capture="link">
+    <div class="card config-card">
+      <div class="card-title">链接采集</div>
+      <div class="field">
+        <label for="linkInput">笔记链接（每行一个，可批量）</label>
+        <textarea id="linkInput" rows="4" placeholder="https://www.xiaohongshu.com/explore/xxx&#10;https://www.xiaohongshu.com/explore/yyy"></textarea>
+      </div>
+      <div class="btn-row">
+        <button id="linkBtn" class="btn primary">开始采集</button>
+        <button id="linkStopBtn" class="btn danger" disabled>停止</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="capture-card" data-capture="suggest">
+    <div class="card config-card">
+      <div class="card-title">下拉词采集</div>
+      <div class="field">
+        <label for="suggestInput">种子词（逗号/换行分隔）</label>
+        <textarea id="suggestInput" rows="2" placeholder="例如：移民&#10;护肤&#10;留学"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="suggestMaxInput">每词上限</label>
+          <input id="suggestMaxInput" type="number" min="1" max="100" value="20" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="suggestBtn" class="btn primary">开始采集</button>
+        <button id="suggestStopBtn" class="btn danger" disabled>停止</button>
+      </div>
+      <div id="suggestStatus" class="status-line">空闲。</div>
+      <div id="suggestResult" class="hidden" style="margin-top:6px">
+        <div class="row" style="margin:4px 0">
+          <button id="copySuggestBtn" class="btn small">复制全部</button>
+          <button id="useSuggestBtn" class="btn small">加入关键词采集</button>
+          <button id="clearSuggestBtn" class="btn small ghost">清空</button>
+        </div>
+        <div id="suggestWordsList" class="chips"></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="capture-card" data-capture="comment">
+    <div class="card config-card">
+      <div class="card-title">评论采集</div>
+      <div class="field">
+        <label for="commentLinksInput">笔记链接（每行一个）</label>
+        <textarea id="commentLinksInput" rows="3" placeholder="https://www.xiaohongshu.com/explore/xxx"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="commentMinLikesInput">最低点赞</label>
+          <input id="commentMinLikesInput" type="number" min="0" value="100" />
+        </div>
+        <div class="field">
+          <label for="commentMaxInput">每篇上限</label>
+          <input id="commentMaxInput" type="number" min="1" max="500" value="50" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="commentBtn" class="btn primary">开始采集</button>
+        <button id="commentStopBtn" class="btn danger" disabled>停止</button>
+      </div>
+      <div id="commentStatus" class="status-line">空闲。</div>
+    </div>
+    </div>
+
+  </section>
+
+  <!-- ============ 素材库 ============ -->
+  <section id="libraryPanel" class="panel hidden">
+    <div class="toolbar">
+      <select id="keywordFilter"><option value="">全部关键词</option></select>
+      <input id="minLikesFilter" type="number" min="0" value="0" placeholder="最低赞" />
+      <select id="sortFilter">
+        <option value="score">按热度分</option>
+        <option value="likes">按点赞</option>
+        <option value="collects">按收藏</option>
+        <option value="comments">按评论</option>
+        <option value="views">按播放</option>
+        <option value="captured_at">按采集时间</option>
+        <option value="post_time">按发布时间</option>
+      </select>
+    </div>
+    <div class="toolbar">
+      <button id="exportXlsxBtn" class="btn small">导出 Excel</button>
+      <button id="dlBatchBtn" class="btn small">下载勾选素材</button>
+      <button id="stopDlBtn" class="btn small ghost" disabled>停止</button>
+      <button id="dedupItemsBtn" class="btn small ghost">去重</button>
+      <button id="clearItemsBtn" class="btn small ghost">清空</button>
+      <span class="tool-spacer"></span>
+      <label class="mini-check"><input type="checkbox" id="selectAllCb" /> 全选</label>
+    </div>
+    <div class="toolbar">
+      <label class="tool-label" for="parseModeSelect">解析模式</label>
+      <select id="parseModeSelect">
+        <option value="fast">极速（约1秒/篇）</option>
+        <option value="safe">稳妥（约10秒/篇）</option>
+      </select>
+    </div>
+    <div id="libraryStatus" class="status-line">勾选素材后点「下载勾选素材」，每篇打包成压缩包保存到「下载/小红书素材/」。</div>
+    <div id="itemList" class="note-list">
+      <div class="empty">暂无素材。</div>
+    </div>
+  </section>
+
+  <!-- ============ 趋势 / 历史 ============ -->
+  <section id="trendPanel" class="panel hidden">
+    <div class="toolbar">
+      <select id="trendKeyword"><option value="">全部关键词</option></select>
+      <button id="trendRefreshBtn" class="btn small">刷新报告</button>
+    </div>
+    <div id="trendReport" class="trend-report">
+      <div class="empty">选择关键词后刷新生成报告。</div>
+    </div>
+    <div class="card config-card" style="margin-top:10px">
+      <div class="card-title">采集历史</div>
+      <div id="historyList" class="history-list">
+        <div class="empty">暂无采集历史。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 评论库 ============ -->
+  <section id="commentsPanel" class="panel hidden">
+    <div class="toolbar">
+      <input id="commentMinLikesFilter" type="number" min="0" value="0" placeholder="最低赞" />
+      <button id="exportCommentsBtn" class="btn small">导出评论 Excel</button>
+      <button id="clearCommentsBtn" class="btn small ghost">清空</button>
+      <span class="tool-spacer"></span>
+      <label class="mini-check"><input type="checkbox" id="selectAllCommentsCb" /> 全选</label>
+    </div>
+    <div id="commentsStatus" class="status-line">评论按点赞从高到低排列。</div>
+    <div id="commentList" class="note-list">
+      <div class="empty">暂无评论。</div>
+    </div>
+  </section>
+
+  <nav class="tab-nav">
+    <button id="tabCaptureBtn" class="tab-btn active"><span class="tab-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.5"/></svg></span>采集</button>
+    <button id="tabLibraryBtn" class="tab-btn"><span class="tab-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>素材库</button>
+    <button id="tabCommentsBtn" class="tab-btn"><span class="tab-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l2.1-5.3A8.4 8.4 0 1 1 21 11.5Z"/></svg></span>评论</button>
+    <button id="tabTrendBtn" class="tab-btn"><span class="tab-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V10M9 20V4M15 20v-7M21 20H3"/></svg></span>趋势/历史</button>
+  </nav>
+
+  <footer class="app-footer">
+    数据仅保存在本地，不会上传。请控制采集频率。
+  </footer>
+  <script src="trend.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
