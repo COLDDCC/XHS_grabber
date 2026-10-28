@@ -633,14 +633,15 @@ $("exportXlsxBtn").addEventListener("click", async () => {
   // 导出前自动补齐缺失正文（素材采集方式不同，正文可能没存上）
   const missing = items.filter((it) => it.url && !(it.content || "").trim());
   if (missing.length) {
-    setStatus(`正在补齐正文（${missing.length} 篇）…`, "status-line running");
+    setStatus(`正在补齐正文（${missing.length} 篇，约 ${Math.ceil(missing.length * 3 / 60)} 分钟，请勿关闭弹窗）…`, "status-line running");
     try {
       const resp = await sendMessage({
         type: "SMC_FILL_CONTENT",
         keys: missing.map((it) => `${it.platform}:${it.id}`),
       });
       if (resp && resp.ok) {
-        if (resp.failed) contentWarning = `；${resp.failed} 篇正文仍为空，请打开对应笔记并等待正文显示后重新导出`;
+        if (resp.blocked) contentWarning = `；小红书要求登录或验证，已停止补齐（${resp.failed} 篇正文为空）。请在网页完成验证后重新导出`;
+        else if (resp.failed) contentWarning = `；${resp.failed} 篇正文仍为空（链接过期、已删除或本身无正文）`;
         const r2 = await sendMessage({
           type: "SMC_GET_ITEMS",
           platform: state.platformFilter,

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "社媒采集助手",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "小红书搜索与笔记采集、正文补齐、Excel 导出和素材下载。搜索采集需要网页登录，素材解析依赖可用的第三方服务。",
   "minimum_chrome_version": "113",
   "permissions": [
