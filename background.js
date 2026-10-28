@@ -28,6 +28,8 @@ const DL_BASE_DIR = "小红书素材";   // 素材下载根目录（按笔记标
 const ONLINE_API = "https://www.xhs-download.online/xhs-download-api";
 const ONLINE_BATCH_API = "https://www.xhs-download.online/batch-xhs-download-api";
 const DL_BATCH_PARSE = 5;        // 批量解析：一次请求解析 5 篇
+const CONTENT_FILL_MIN_GAP_MS = 2000;  // 正文补齐：两次请求之间至少停顿 2 秒
+const CONTENT_FILL_JITTER_MS = 2000;   // 再随机加 0~2 秒
 
 const PLATFORMS = {
   xhs: { label: "小红书", urlPrefix: "https://www.xiaohongshu.com" },
@@ -467,6 +469,35 @@ async function fetchWanyiSsr(url) {
     return parseXhsSsr(html, resp.url || url);
   } catch (e) {
     return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 正文补齐专用：带上浏览器里的小红书登录 Cookie 抓笔记页，从 __INITIAL_STATE__ 读 desc。
+// 匿名请求通常只拿到登录墙，所以正文补齐走登录态；素材下载仍保持匿名。
+// 返回 { content, blocked }：blocked=true 表示被要求登录/验证，调用方应停止继续请求。
+function isXhsBlockedUrl(u) {
+  return /website-login|\/login|captcha|verify/i.test(String(u || ""));
+}
+async function fetchNoteContentLoggedIn(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      credentials: "include",
+      headers: { "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+    });
+    const finalUrl = (resp && resp.url) || url;
+    if (isXhsBlockedUrl(finalUrl)) return { content: "", blocked: true };
+    if (!resp || !resp.ok) return { content: "", blocked: resp && (resp.status === 461 || resp.status === 471) };
+    const html = await resp.text();
+    const parsed = parseXhsSsr(html, url);
+    return { content: String((parsed && parsed.content) || "").trim(), blocked: false };
+  } catch (e) {
+    return { content: "", blocked: false };
   } finally {
     clearTimeout(timer);
   }
@@ -1657,8 +1688,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           let filled = 0, failed = 0;
           const updates = [];
           const errors = [];
-          // Sequential requests keep request pressure low and avoid losing a whole batch.
+          // 重新读取存储再写回，避免覆盖补齐期间新采集的数据
+          const flushContent = async () => {
+            if (!updates.length) return;
+            const latest = await readAll();
+            for (const update of updates.splice(0)) {
+              if (latest.items[update.key]) latest.items[update.key].content = update.content;
+            }
+            await persistAll(latest.items, latest.keywords, latest.history, latest.snapshots);
+          };
+          // 逐篇顺序请求，每篇之间随机停顿，降低风控概率；一旦被要求登录/验证立即停止。
+          let blocked = false;
+          let hitNetwork = false;
           for (const it of need) {
+            if (blocked) { failed++; errors.push({ id: it.id, error: "小红书要求登录或验证，已停止补齐；请在网页完成验证后重新导出。" }); continue; }
             try {
               let c = "";
               const tabs = await chrome.tabs.query({ url: "https://*.xiaohongshu.com/*" });
@@ -1669,22 +1712,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 } catch (e) { /* Older tabs need a refresh after extension update. */ }
               }
               if (!c.trim()) {
-                const parsed = await parseWithFallback(it.url, "content");
-                c = String(parsed && parsed.obj && (parsed.obj.content || parsed.obj.desc) || "");
+                if (hitNetwork) await sleep(CONTENT_FILL_MIN_GAP_MS + Math.random() * CONTENT_FILL_JITTER_MS);
+                hitNetwork = true;
+                const r = await fetchNoteContentLoggedIn(it.url);
+                c = r.content;
+                if (r.blocked) blocked = true;
               }
-              if (c.trim()) { updates.push({ key: `${it.platform}:${it.id}`, content: c }); filled++; }
-              else { failed++; errors.push({ id: it.id, error: "未读取到正文；请在已登录的小红书网页打开此笔记，等待正文显示后重试导出。可能需要登录、验证，或笔记本身没有正文。" }); }
+              if (!c.trim() && !blocked) {
+                // 登录态没取到时再试第三方在线服务（不再匿名重复请求小红书，减少请求量）
+                const obj = await fetchOnlineParse(it.url).catch(() => null);
+                c = String(obj && (obj.content || obj.desc) || "");
+              }
+              if (c.trim()) {
+                updates.push({ key: `${it.platform}:${it.id}`, content: c }); filled++;
+                if (updates.length >= 5) await flushContent(); // 分批落盘：弹窗中途关闭也不丢已补好的正文
+              }
+              else if (blocked) { failed++; errors.push({ id: it.id, error: "小红书要求登录或验证，已停止补齐；请在网页完成验证后重新导出。" }); }
+              else { failed++; errors.push({ id: it.id, error: "未读取到正文：链接可能已过期（xsec_token 失效）、笔记已删除，或笔记本身没有正文。可在网页打开该笔记后重试。" }); }
             } catch (e) { failed++; errors.push({ id: it.id, error: String(e.message || e) }); }
           }
-          if (updates.length) {
-            // Re-read storage so this export does not overwrite newly collected notes.
-            const latest = await readAll();
-            for (const update of updates) {
-              if (latest.items[update.key]) latest.items[update.key].content = update.content;
-            }
-            await persistAll(latest.items, latest.keywords, latest.history, latest.snapshots);
-          }
-          sendResponse({ ok: true, filled, failed, total: need.length, errors });
+          await flushContent();
+          sendResponse({ ok: true, filled, failed, total: need.length, errors, blocked });
           break;
         }
         case "SMC_GET_ITEMS": {
