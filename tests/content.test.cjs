@@ -20,5 +20,7 @@ const parser = source.slice(source.indexOf('async function parseWithFallback'), 
   const html = '<script>window.__INITIAL_STATE__=' + JSON.stringify({ note: { noteDetailMap: { abc: { note: { title: '测试', desc: '正文', imageList: [] } } } } }) + '</script>';
   assert.equal(context.parseXhsSsr(html, 'https://www.xiaohongshu.com/explore/abc').content, '正文');
   assert.equal(context.parseXhsSsr(html, 'https://www.xiaohongshu.com/explore/other'), null, 'never export another note as target');
+  const dlFn = source.slice(source.indexOf('async function doDownloadEntry'), source.indexOf('// 收尾：回写库存'));
+  assert.ok(!/\bpurpose\b/.test(dlFn), 'doDownloadEntry must not reference the parser-only purpose variable');
   console.log('Passed: content fallback, media fallback, SSR matching and mismatched note rejection');
 })().catch(e => { console.error(e); process.exitCode = 1; });

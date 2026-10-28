@@ -920,7 +920,7 @@ async function processDownloadEntry(entry, parsed) {
 async function doDownloadEntry(entry, obj, stored, baseName, base) {
   let zipOk = false;
   let videoOk = false;
-  if (purpose === "content" ? !!String(obj && (obj.content || obj.desc) || "").trim() : hasMedia(obj)) {
+  if (hasMedia(obj)) {
     // 1) 本地并行抓图 + 本地打包（快）
     let zipDataUrl = await buildLocalZip(obj, baseName);
     if (!zipDataUrl) {
